@@ -56,8 +56,11 @@ type Session struct {
 
 const (
 	httpXRequestedWithValue = "com.valvesoftware.android.steam.community"
-	httpUserAgentValue      = "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
 	httpAcceptValue         = "text/javascript, text/html, application/xml, text/xml, */*"
+	httpUserAgentValue      = "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - " +
+		"768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
+	httpLoginReferer = "https://steamcommunity.com/mobilelogin?oauth_client_id=DE45CD61&oauth_scope=read_profile" +
+		"%20write_profile%20read_client%20write_client"
 )
 
 var (
@@ -104,7 +107,7 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 	}
 
 	req.Header.Add("X-Requested-With", httpXRequestedWithValue)
-	req.Header.Add("Referer", "https://steamcommunity.com/mobilelogin?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client")
+	req.Header.Add("Referer", httpLoginReferer)
 	req.Header.Add("User-Agent", httpUserAgentValue)
 	req.Header.Add("Accept", httpAcceptValue)
 
@@ -143,8 +146,8 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 	hex.Encode(sessionID, randomBytes)
 	session.sessionID = string(sessionID)
 
-	url, _ := url.Parse("https://steamcommunity.com")
-	cookies := session.client.Jar.Cookies(url)
+	steamUrl, _ := url.Parse("https://steamcommunity.com")
+	cookies := session.client.Jar.Cookies(steamUrl)
 	for _, cookie := range cookies {
 		if cookie.Name == "mobileClient" || cookie.Name == "mobileClientVersion" || cookie.Name == "steamCountry" || strings.Contains(cookie.Name, "steamMachineAuth") {
 			// remove by setting max age -1
@@ -159,7 +162,7 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 	)
 
 	session.client.Jar.SetCookies(
-		url,
+		steamUrl,
 		append(cookies, &http.Cookie{
 			Name:  "sessionid",
 			Value: session.sessionID,
@@ -168,8 +171,12 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 	return nil
 }
 
-func (session *Session) makeLoginRequest(accountName, password string) (*LoginResponse, error) {
-	req, err := http.NewRequest(http.MethodPost, "https://steamcommunity.com/login/getrsakey?username="+accountName, nil)
+func (session *Session) makeLoginRequest(accountName string) (*LoginResponse, error) {
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"https://steamcommunity.com/login/getrsakey?username="+accountName,
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +187,7 @@ func (session *Session) makeLoginRequest(accountName, password string) (*LoginRe
 	}
 
 	req.Header.Add("X-Requested-With", httpXRequestedWithValue)
-	req.Header.Add("Referer", "https://steamcommunity.com/mobilelogin?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client")
+	req.Header.Add("Referer", httpLoginReferer)
 	req.Header.Add("User-Agent", httpUserAgentValue)
 	req.Header.Add("Accept", httpAcceptValue)
 
@@ -190,8 +197,8 @@ func (session *Session) makeLoginRequest(accountName, password string) (*LoginRe
 		{Name: "Steam_Language", Value: session.language},
 		{Name: "timezoneOffset", Value: "0,0"},
 	}
-	url, _ := url.Parse("https://steamcommunity.com")
-	jar.SetCookies(url, cookies)
+	steamUrl, _ := url.Parse("https://steamcommunity.com")
+	jar.SetCookies(steamUrl, cookies)
 	session.client.Jar = jar
 
 	resp, err := session.client.Do(req)
@@ -221,7 +228,7 @@ func (session *Session) makeLoginRequest(accountName, password string) (*LoginRe
 // Note: You can provide an empty two factor code if two factor authentication is not
 // enabled on the account provided.
 func (session *Session) LoginTwoFactorCode(accountName, password, twoFactorCode string) error {
-	response, err := session.makeLoginRequest(accountName, password)
+	response, err := session.makeLoginRequest(accountName)
 	if err != nil {
 		return err
 	}
@@ -233,7 +240,7 @@ func (session *Session) LoginTwoFactorCode(accountName, password, twoFactorCode 
 // to do the actual login, this provides a better chance that the code generated will work
 // because of the slowness of the API.
 func (session *Session) Login(accountName, password, sharedSecret string, timeOffset time.Duration) error {
-	response, err := session.makeLoginRequest(accountName, password)
+	response, err := session.makeLoginRequest(accountName)
 	if err != nil {
 		return err
 	}

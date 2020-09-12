@@ -125,6 +125,10 @@ func (session *Session) ReSendVerificationCode() error {
 		defer resp.Body.Close()
 	}
 
+	if err != nil {
+		return err
+	}
+
 	var response PhoneAPIResponse
 	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return err

@@ -1,4 +1,4 @@
-# Steam [![Build Status](https://travis-ci.org/doctype/steam.svg?branch=master)](https://travis-ci.org/doctype/steam)
+# Steam, forked from [doctype/steam](https://github.com/doctype/steam) 
 
 Steam is a library for interactions with [Steam](https://steamcommunity.com), it's written in Go.  
 Steam tries to keep-it-simple and does not add extra non-sense.  There are absolutely no internal-polling or such,
@@ -12,11 +12,10 @@ Steam tries to keep-it-simple and does not add extra non-sense.  There are absol
 
 ## Installation
 
-Make sure you have _at least_ Go 1.6 with a GOPATH set then run:
+Make sure you have _at least_ Go 1.15 with a GOPATH set then run:
 
 ```
-go get github.com/PuerkitoBio/goquery
-go get github.com/doctype/steam
+go get github.com/LuciusMortified/steam
 ```
 
 ## Example
@@ -25,27 +24,27 @@ go get github.com/doctype/steam
 package main
 
 import (
-	"log"
-	"os"
+    "log"
+    "net/http"
+    "os"
+    "time"
 
-	"github.com/doctype/steam"
+    "github.com/LuciusMortified/steam"
 )
 
-func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	timeTip, err := steam.GetTimeTip()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("Time tip: %#v\n", timeTip)
-	timeDiff := time.Duration(timeTip.Time - time.Now().Unix())
-	
-	session := steam.NewSession(&http.Client{}, "")
-	if err := session.Login(os.Getenv("steamAccount"), os.Getenv("steamPassword"), os.Getenv("steamSharedSecret"), timeDiff); err != nil {
-		log.Fatal(err)
-	}
-	log.Print("Login successful")
+func main() {    
+    timeTip, err := steam.GetTimeTip()
+    if err != nil {
+        log.Fatal(err)
+    }
+    log.Printf("Time tip: %#v\n", timeTip)
+    timeDiff := time.Duration(timeTip.Time - time.Now().Unix())
+    
+    session := steam.NewSession(&http.Client{}, "")
+    if err := session.Login(os.Getenv("steamAccount"), os.Getenv("steamPassword"), os.Getenv("steamSharedSecret"), timeDiff); err != nil {
+        log.Fatal(err)
+    }
+    log.Print("Login successful")
 }
 ```
 

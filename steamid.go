@@ -56,7 +56,7 @@ var (
 	//	U = universe
 	//	A = account ID
 	//	I = instance id if not present, the default instance id for that C value is used.
-	modernRegexp = regexp.MustCompile("\\[([a-zA-Z]):([0-5]):([0-9]+)(:[0-9]+)?\\]")
+	modernRegexp = regexp.MustCompile(`\[([a-zA-Z]):([0-5]):([0-9]+)(:[0-9]+)?\]`)
 
 	ErrInvalidSteam2ID = errors.New("invalid input specified for a Steam 2 ID")
 	ErrInvalidSteam3ID = errors.New("invalid input specified for a Steam 3 ID")

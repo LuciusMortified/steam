@@ -1,4 +1,5 @@
 !.gitignore
 steam
 test.sh
+.idea
 

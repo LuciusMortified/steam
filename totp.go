@@ -36,7 +36,10 @@ func GenerateTwoFactorCode(sharedSecret string, current int64) (string, error) {
 	binary.BigEndian.PutUint32(ful[4:], uint32(current/30))
 
 	hmac := hmac.New(sha1.New, data)
-	hmac.Write(ful)
+	_, err = hmac.Write(ful)
+	if err != nil {
+		return "", err
+	}
 
 	sum := hmac.Sum(nil)
 	start := sum[19] & 0x0F
@@ -61,7 +64,10 @@ func GenerateConfirmationCode(identitySecret, tag string, current int64) (string
 	copy(ful[8:], tag)
 
 	hmac := hmac.New(sha1.New, data)
-	hmac.Write(ful)
+	_, err = hmac.Write(ful)
+	if err != nil {
+		return "", err
+	}
 
 	return base64.StdEncoding.EncodeToString(hmac.Sum(nil)), nil
 }

@@ -47,11 +47,11 @@ const (
 var (
 	// receiptExp matches JSON in the following form:
 	//	oItem = {"id":"...",...}; (Javascript code)
-	receiptExp    = regexp.MustCompile("oItem =\\s(.+?});")
-	myEscrowExp   = regexp.MustCompile("var g_daysMyEscrow = (\\d+);")
-	themEscrowExp = regexp.MustCompile("var g_daysTheirEscrow = (\\d+);")
-	errorMsgExp   = regexp.MustCompile("<div id=\"error_msg\">\\s*([^<]+)\\s*</div>")
-	offerInfoExp  = regexp.MustCompile("token=([a-zA-Z0-9-_]+)")
+	receiptExp    = regexp.MustCompile(`oItem =\\s(.+?});`)
+	myEscrowExp   = regexp.MustCompile(`var g_daysMyEscrow = (\\d+);`)
+	themEscrowExp = regexp.MustCompile(`var g_daysTheirEscrow = (\\d+);`)
+	errorMsgExp   = regexp.MustCompile(`<div id="error_msg">\\s*([^<]+)\\s*</div>`)
+	offerInfoExp  = regexp.MustCompile(`token=([a-zA-Z0-9-_]+)`)
 
 	apiGetTradeOffer     = "https://api.steampowered.com/IEconService/GetTradeOffer/v1/?"
 	apiGetTradeOffers    = "https://api.steampowered.com/IEconService/GetTradeOffers/v1/?"
@@ -228,7 +228,7 @@ func (session *Session) GetMyTradeToken() (string, error) {
 		return "", ErrCannotFindOfferInfo
 	}
 
-	return string(m[1]), nil
+	return m[1], nil
 }
 
 type EscrowSteamGuardInfo struct {
@@ -264,18 +264,18 @@ func (session *Session) GetEscrowGuardInfo(sid SteamID, token string) (*EscrowSt
 	var errMsg string
 
 	m := myEscrowExp.FindStringSubmatch(string(body))
-	if m != nil && len(m) == 2 {
+	if len(m) == 2 {
 		my, _ = strconv.ParseInt(m[1], 10, 32)
 	}
 
 	m = themEscrowExp.FindStringSubmatch(string(body))
-	if m != nil && len(m) == 2 {
+	if len(m) == 2 {
 		them, _ = strconv.ParseInt(m[1], 10, 32)
 	}
 
 	m = errorMsgExp.FindStringSubmatch(string(body))
-	if m != nil && len(m) == 2 {
-		errMsg = string(m[1])
+	if len(m) == 2 {
+		errMsg = m[1]
 	}
 
 	return &EscrowSteamGuardInfo{
