@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/doctype/steam"
+	"github.com/LuciusMortified/steam"
 )
 
 func main() {
@@ -34,7 +34,11 @@ func main() {
 	if err = session.ChatLogin(""); err != nil {
 		log.Fatal(err)
 	}
-	defer session.ChatLogoff()
+	defer func(s *steam.Session) {
+		if err := s.ChatLogoff(); err != nil {
+			log.Fatal(err)
+		}
+	}(session)
 
 	tries := 0
 	for {

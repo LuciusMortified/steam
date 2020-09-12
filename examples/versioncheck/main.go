@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/doctype/steam"
+	"github.com/LuciusMortified/steam"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/doctype/steam"
+	"github.com/LuciusMortified/steam"
 )
 
 func processOffer(session *steam.Session, offer *steam.TradeOffer) {
