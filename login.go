@@ -43,6 +43,20 @@ type LoginSession struct {
 	OAuthInfo         string `json:"oauth"`
 }
 
+type SessionData struct {
+	OAuthToken         string `json:"oauth_token"`
+	OAuthWGToken       string `json:"oauth_wg_token"`
+	OAuthWGTokenSecure string `json:"oauth_wg_token_secure"`
+	OAuthWebCookie     string `json:"oauth_webcookie"`
+	SteamID            uint64 `json:"steam_id"`
+	SessionID          string `json:"session_id"`
+	ApiKey             string `json:"api_key"`
+	DeviceID           string `json:"device_id"`
+	UmqID              string `json:"umq_id"`
+	ChatMessage        int    `json:"chat_message"`
+	Language           string `json:"language"`
+}
+
 type Session struct {
 	client      *http.Client
 	oauth       OAuth
@@ -64,9 +78,58 @@ const (
 )
 
 var (
-	ErrInvalidUsername = errors.New("invalid username")
-	ErrNeedTwoFactor   = errors.New("invalid twofactor code")
+	ErrRestoreClientNil = errors.New("restore client is nil")
+	ErrRestoreDataNil   = errors.New("restore data is nil")
+	ErrInvalidUsername  = errors.New("invalid username")
+	ErrNeedTwoFactor    = errors.New("invalid twofactor code")
 )
+
+func RestoreSession(client *http.Client, data *SessionData) (*Session, error) {
+	if client == nil {
+		return nil, ErrRestoreClientNil
+	}
+
+	if data == nil {
+		return nil, ErrRestoreDataNil
+	}
+
+	oauth := OAuth{
+		SteamID:       SteamID(data.SteamID),
+		Token:         data.OAuthToken,
+		WGToken:       data.OAuthWGToken,
+		WGTokenSecure: data.OAuthWGTokenSecure,
+		WebCookie:     data.OAuthWebCookie,
+	}
+
+	session := &Session{
+		client:      client,
+		oauth:       oauth,
+		sessionID:   data.SessionID,
+		apiKey:      data.ApiKey,
+		deviceID:    data.DeviceID,
+		umqID:       data.UmqID,
+		chatMessage: data.ChatMessage,
+		language:    data.Language,
+	}
+
+	return session, nil
+}
+
+func (session *Session) Dump() *SessionData {
+	return &SessionData{
+		SteamID:            uint64(session.oauth.SteamID),
+		OAuthToken:         session.oauth.Token,
+		OAuthWGToken:       session.oauth.WGToken,
+		OAuthWGTokenSecure: session.oauth.WGTokenSecure,
+		OAuthWebCookie:     session.oauth.WebCookie,
+		SessionID:          session.sessionID,
+		ApiKey:             session.apiKey,
+		DeviceID:           session.deviceID,
+		UmqID:              session.umqID,
+		ChatMessage:        session.chatMessage,
+		Language:           session.language,
+	}
+}
 
 func (session *Session) proceedDirectLogin(response *LoginResponse, accountName, password, twoFactorCode string) error {
 	var n big.Int

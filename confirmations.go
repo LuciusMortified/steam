@@ -3,10 +3,9 @@ package steam
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
-
-	"fmt"
 	"net/url"
 	"strconv"
 
@@ -23,7 +22,7 @@ type Confirmation struct {
 }
 
 var (
-	ErrConfirmationsUnknownError = errors.New("unknown error occurred finding confirmations")
+	//ErrConfirmationsUnknownError = errors.New("unknown error occurred finding confirmations")
 	ErrCannotFindConfirmations   = errors.New("unable to find confirmations")
 	ErrCannotFindDescriptions    = errors.New("unable to find confirmation descriptions")
 	ErrConfirmationsDescMismatch = errors.New("cannot match confirmations with their respective descriptions")
@@ -73,14 +72,14 @@ func (session *Session) GetConfirmations(identitySecret string, current int64) (
 		return nil, err
 	}
 
-	/* FIXME: broken
-	if empty := doc.Find(".mobileconf_empty"); empty != nil {
-		if done := doc.Find(".mobileconf_done"); done != nil {
-			return nil, nil
-		}
+	/*
+		if empty := doc.Find(".mobileconf_empty"); empty != nil {
+			if done := doc.Find(".mobileconf_done"); done != nil {
+				return nil, nil
+			}
 
-		return nil, ErrConfirmationsUnknownError // FIXME
-	}
+			return nil, ErrConfirmationsUnknownError // FIXME: broken
+		}
 	*/
 
 	entries := doc.Find(".mobileconf_list_entry")
@@ -97,7 +96,7 @@ func (session *Session) GetConfirmations(identitySecret string, current int64) (
 		return nil, ErrConfirmationsDescMismatch
 	}
 
-	confirmations := []*Confirmation{}
+	confirmations := make([]*Confirmation, 0)
 	for k, sel := range entries.Nodes {
 		confirmation := &Confirmation{}
 		for _, attr := range sel.Attr {

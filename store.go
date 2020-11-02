@@ -17,10 +17,10 @@ type PhoneAPIResponse struct {
 }
 
 func (session *Session) PrepareForSteamStore() {
-	commu, _ := url.Parse("https://steamcommunity.com")
+	community, _ := url.Parse("https://steamcommunity.com")
 	store, _ := url.Parse("https://store.steampowered.com")
 
-	session.client.Jar.SetCookies(store, session.client.Jar.Cookies(commu))
+	session.client.Jar.SetCookies(store, session.client.Jar.Cookies(community))
 }
 
 func (session *Session) ValidatePhoneNumber(number string) error {

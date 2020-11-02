@@ -89,8 +89,8 @@ type MarketBuyOrderResponse struct {
 }
 
 var (
-	ErrCannotLoadPrices     = errors.New("unable to load prices at this time")
-	ErrInvalidPriceResponse = errors.New("invalid market pricehistory response")
+	ErrCannotLoadPrices = errors.New("unable to load prices at this time")
+	//ErrInvalidPriceResponse = errors.New("invalid market pricehistory response")
 )
 
 func (session *Session) GetMarketItemPriceHistory(appID uint64, marketHashName string) ([]*MarketItemPrice, error) {
@@ -125,7 +125,7 @@ func (session *Session) GetMarketItemPriceHistory(appID uint64, marketHashName s
 		return nil, ErrCannotLoadPrices
 	}
 
-	items := []*MarketItemPrice{}
+	items := make([]*MarketItemPrice, 0)
 	for _, v := range prices {
 		if v, ok := v.([]interface{}); ok {
 			item := &MarketItemPrice{}
