@@ -9,9 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -66,6 +68,7 @@ type Session struct {
 	umqID       string
 	chatMessage int
 	language    string
+	debug       bool
 }
 
 const (
@@ -181,6 +184,14 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 
 	if err != nil {
 		return err
+	}
+
+	if session.debug {
+		respBytes, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			return err
+		}
+		log.Println(string(respBytes))
 	}
 
 	var loginSession LoginSession
@@ -334,10 +345,11 @@ func NewSessionWithAPIKey(apiKey string) *Session {
 	}
 }
 
-func NewSession(client *http.Client, apiKey string) *Session {
+func NewSession(client *http.Client, apiKey string, debug bool) *Session {
 	return &Session{
 		client:   client,
 		apiKey:   apiKey,
 		language: "english",
+		debug:    debug,
 	}
 }
