@@ -19,7 +19,7 @@ func main() {
 	log.Printf("Time tip: %#v\n", timeTip)
 
 	timeDiff := time.Duration(timeTip.Time - time.Now().Unix())
-	session := steam.NewSession(&http.Client{}, "")
+	session := steam.NewSession(&http.Client{}, "", true)
 	if err := session.Login(os.Getenv("steamAccount"), os.Getenv("steamPassword"), os.Getenv("steamSharedSecret"), timeDiff); err != nil {
 		log.Fatal(err)
 	}

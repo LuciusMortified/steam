@@ -284,6 +284,14 @@ func (session *Session) makeLoginRequest(accountName string) (*LoginResponse, er
 		return nil, err
 	}
 
+	if session.debug {
+		respBytes, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			return nil, err
+		}
+		log.Println(string(respBytes))
+	}
+
 	var response LoginResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
