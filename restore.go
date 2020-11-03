@@ -10,9 +10,7 @@ import (
 
 type CookieData struct {
 	TimezoneOffset     string `json:"timezone_offset"`
-	SessionID          string `json:"session_id"`
 	SteamCountry       string `json:"steam_country"`
-	SteamLoginSecure   string `json:"steam_login_secure"`
 	SteamMachineAuth   string `json:"steam_machine_auth"`
 	SteamRememberLogin string `json:"steam_remember_login"`
 }
@@ -47,14 +45,10 @@ func (session *Session) Dump() (*SessionData, error) {
 
 	for _, cookie := range cookies {
 		switch cookie.Name {
-		case "sessionid":
-			cookieData.SessionID = cookie.Value
 		case "timezoneOffset":
 			cookieData.TimezoneOffset = cookie.Value
 		case "steamCountry":
 			cookieData.SteamCountry = cookie.Value
-		case "steamLoginSecure":
-			cookieData.SteamLoginSecure = cookie.Value
 		case fmt.Sprintf("steamMachineAuth%d", session.oauth.SteamID):
 			cookieData.SteamMachineAuth = cookie.Value
 		case "steamRememberLogin":
@@ -103,10 +97,10 @@ func RestoreSession(client *http.Client, data *SessionData, debug bool) (*Sessio
 	}
 
 	cookieJar.SetCookies(steamUrl, []*http.Cookie{
-		{Name: "sessionid", Value: data.Cookies.SessionID},
+		{Name: "sessionid", Value: data.SessionID},
+		{Name: "steamLoginSecure", Value: data.LoginSecure},
 		{Name: "timezoneOffset", Value: data.Cookies.TimezoneOffset},
 		{Name: "steamCountry", Value: data.Cookies.SteamCountry},
-		{Name: "steamLoginSecure", Value: data.Cookies.SteamLoginSecure},
 		{Name: fmt.Sprintf("steamMachineAuth%d", data.SteamID), Value: data.Cookies.SteamMachineAuth},
 		{Name: "steamRememberLogin", Value: data.Cookies.SteamRememberLogin},
 	})
