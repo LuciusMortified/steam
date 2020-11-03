@@ -40,7 +40,7 @@ func main() {
 	profileInfo := map[string][]string{
 		"personaName": {"MasterOfTests"},
 		"summary":     {"i am just a test, go away"},
-		"customURL":   {"therealtesterOFDOOM"},
+		"customURL":   {"1337test1337"},
 	}
 	if err = session.SetProfileInfo(profileURL, &profileInfo); err != nil {
 		log.Fatal(err)
@@ -84,7 +84,7 @@ func main() {
 		log.Printf("%s -> %.2f (%s of same price)\n", v.Date, v.Price, v.Count)
 	}
 
-	overview, err := session.GetMarketItemPriceOverview(730, "DE", "3", "P90 | Asiimov (Factory New)")
+	overview, err := session.GetMarketItemPriceOverview(730, "RU", "3", "P90 | Asiimov (Factory New)")
 	if err != nil {
 		log.Fatal(err)
 	}

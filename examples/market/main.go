@@ -19,7 +19,7 @@ func main() {
 	log.Printf("Time tip: %#v\n", timeTip)
 
 	timeDiff := time.Duration(timeTip.Time - time.Now().Unix())
-	session := steam.NewSession(&http.Client{}, "")
+	session := steam.NewSession(&http.Client{}, "", true)
 	if err := session.Login(os.Getenv("steamAccount"), os.Getenv("steamPassword"), os.Getenv("steamSharedSecret"), timeDiff); err != nil {
 		log.Fatal(err)
 	}
@@ -34,13 +34,13 @@ func main() {
 		log.Printf("%s -> %.2f (%s of same price)\n", v.Date, v.Price, v.Count)
 	}
 
-	overview, err := session.GetMarketItemPriceOverview(730, "DE", "3", "P90 | Asiimov (Factory New)")
+	overview, err := session.GetMarketItemPriceOverview(730, "RU", "3", "P90 | Asiimov (Factory New)")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if overview.Success {
-		log.Println("Price overfiew for P90 Asiimov FN:")
+		log.Println("Price overview for P90 Asiimov FN:")
 		log.Printf("Volume: %s\n", overview.Volume)
 		log.Printf("Lowest price: %s Median Price: %s", overview.LowestPrice, overview.MedianPrice)
 	}

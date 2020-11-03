@@ -5,15 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -24,16 +21,15 @@ type LoginResponse struct {
 	Success      bool   `json:"success"`
 	PublicKeyMod string `json:"publickey_mod"`
 	PublicKeyExp string `json:"publickey_exp"`
-	Timestamp    string
-	TokenGID     string
+	Timestamp    string `json:"timestamp"`
+	TokenGID     string `json:"token_gid"`
 }
 
 type OAuth struct {
-	SteamID       SteamID `json:"steamid,string"`
-	Token         string  `json:"oauth_token"`
-	WGToken       string  `json:"wgtoken"`
-	WGTokenSecure string  `json:"wgtoken_secure"`
-	WebCookie     string  `json:"webcookie"`
+	SteamID     SteamID `json:"steamid,string"`
+	Token       string  `json:"auth"`
+	LoginSecure string  `json:"token_secure"`
+	WebCookie   string  `json:"webcookie"`
 }
 
 type LoginSession struct {
@@ -42,21 +38,7 @@ type LoginSession struct {
 	RequiresTwoFactor bool   `json:"requires_twofactor"`
 	Message           string `json:"message"`
 	RedirectURI       string `json:"redirect_uri"`
-	OAuthInfo         string `json:"oauth"`
-}
-
-type SessionData struct {
-	OAuthToken         string `json:"oauth_token"`
-	OAuthWGToken       string `json:"oauth_wg_token"`
-	OAuthWGTokenSecure string `json:"oauth_wg_token_secure"`
-	OAuthWebCookie     string `json:"oauth_webcookie"`
-	SteamID            uint64 `json:"steam_id"`
-	SessionID          string `json:"session_id"`
-	ApiKey             string `json:"api_key"`
-	DeviceID           string `json:"device_id"`
-	UmqID              string `json:"umq_id"`
-	ChatMessage        int    `json:"chat_message"`
-	Language           string `json:"language"`
+	OAuth             OAuth  `json:"transfer_parameters"`
 }
 
 type Session struct {
@@ -72,67 +54,19 @@ type Session struct {
 }
 
 const (
-	httpXRequestedWithValue = "com.valvesoftware.android.steam.community"
-	httpAcceptValue         = "text/javascript, text/html, application/xml, text/xml, */*"
-	httpUserAgentValue      = "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - " +
-		"768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
-	httpLoginReferer = "https://steamcommunity.com/mobilelogin?oauth_client_id=DE45CD61&oauth_scope=read_profile" +
-		"%20write_profile%20read_client%20write_client"
+	httpBaseUrl  = "https://steamcommunity.com"
+	httpLoginUrl = "https://steamcommunity.com/login"
+	//httpXRequestedWithValue = "com.valvesoftware.android.steam.community"
+	//httpAcceptValue         = "text/javascript, text/html, application/xml, text/xml, */*"
+	//httpUserAgentValue      = "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
+	//httpLoginReferer        = "https://steamcommunity.com/mobilelogin?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client"
 )
 
 var (
-	ErrRestoreClientNil = errors.New("restore client is nil")
-	ErrRestoreDataNil   = errors.New("restore data is nil")
-	ErrInvalidUsername  = errors.New("invalid username")
-	ErrNeedTwoFactor    = errors.New("invalid twofactor code")
+	ErrEmptySessionID  = errors.New("sessionid is empty")
+	ErrInvalidUsername = errors.New("invalid username")
+	ErrNeedTwoFactor   = errors.New("invalid twofactor code")
 )
-
-func RestoreSession(client *http.Client, data *SessionData) (*Session, error) {
-	if client == nil {
-		return nil, ErrRestoreClientNil
-	}
-
-	if data == nil {
-		return nil, ErrRestoreDataNil
-	}
-
-	oauth := OAuth{
-		SteamID:       SteamID(data.SteamID),
-		Token:         data.OAuthToken,
-		WGToken:       data.OAuthWGToken,
-		WGTokenSecure: data.OAuthWGTokenSecure,
-		WebCookie:     data.OAuthWebCookie,
-	}
-
-	session := &Session{
-		client:      client,
-		oauth:       oauth,
-		sessionID:   data.SessionID,
-		apiKey:      data.ApiKey,
-		deviceID:    data.DeviceID,
-		umqID:       data.UmqID,
-		chatMessage: data.ChatMessage,
-		language:    data.Language,
-	}
-
-	return session, nil
-}
-
-func (session *Session) Dump() *SessionData {
-	return &SessionData{
-		SteamID:            uint64(session.oauth.SteamID),
-		OAuthToken:         session.oauth.Token,
-		OAuthWGToken:       session.oauth.WGToken,
-		OAuthWGTokenSecure: session.oauth.WGTokenSecure,
-		OAuthWebCookie:     session.oauth.WebCookie,
-		SessionID:          session.sessionID,
-		ApiKey:             session.apiKey,
-		DeviceID:           session.deviceID,
-		UmqID:              session.umqID,
-		ChatMessage:        session.chatMessage,
-		Language:           session.language,
-	}
-}
 
 func (session *Session) proceedDirectLogin(response *LoginResponse, accountName, password, twoFactorCode string) error {
 	var n big.Int
@@ -149,52 +83,45 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 		return err
 	}
 
+	reqData := url.Values{
+		"captcha_text":      {""},
+		"captchagid":        {"-1"},
+		"emailauth":         {""},
+		"emailsteamid":      {""},
+		"username":          {accountName},
+		"password":          {base64.StdEncoding.EncodeToString(rsaOut)},
+		"remember_login":    {"true"},
+		"rsatimestamp":      {response.Timestamp},
+		"twofactorcode":     {twoFactorCode},
+		"donotcache":        {strconv.FormatInt(time.Now().Unix()*1000, 10)},
+		"loginfriendlyname": {""},
+	}.Encode()
+
 	req, err := http.NewRequest(
 		http.MethodPost,
-		"https://steamcommunity.com/login/dologin/?"+url.Values{
-			"captcha_text":      {""},
-			"captchagid":        {"-1"},
-			"emailauth":         {""},
-			"emailsteamid":      {""},
-			"password":          {base64.StdEncoding.EncodeToString(rsaOut)},
-			"remember_login":    {"true"},
-			"rsatimestamp":      {response.Timestamp},
-			"twofactorcode":     {twoFactorCode},
-			"username":          {accountName},
-			"oauth_client_id":   {"DE45CD61"},
-			"oauth_scope":       {"read_profile write_profile read_client write_client"},
-			"loginfriendlyname": {"#login_emailauth_friendlyname_mobile"},
-			"donotcache":        {strconv.FormatInt(time.Now().Unix()*1000, 10)},
-		}.Encode(),
-		nil,
+		"https://steamcommunity.com/login/dologin",
+		strings.NewReader(reqData),
 	)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("X-Requested-With", httpXRequestedWithValue)
-	req.Header.Add("Referer", httpLoginReferer)
-	req.Header.Add("User-Agent", httpUserAgentValue)
-	req.Header.Add("Accept", httpAcceptValue)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Add("Content-Length", strconv.Itoa(len(reqData)))
+	req.Header.Add("X-Requested-With", "XMLHttpRequest")
+	req.Header.Add("Origin", "https://steamcommunity.com")
+	req.Header.Add("Referer", "https://steamcommunity.com/login")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36")
+	req.Header.Add("Accept", "*/*")
 
 	resp, err := session.client.Do(req)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
 	if err != nil {
 		return err
 	}
 
-	if session.debug {
-		respBytes, err := httputil.DumpResponse(resp, true)
-		if err != nil {
-			return err
-		}
-		log.Println(string(respBytes))
-	}
+	defer resp.Body.Close()
 
-	var loginSession LoginSession
+	loginSession := &LoginSession{}
 	if err := json.NewDecoder(resp.Body).Decode(&loginSession); err != nil {
 		return err
 	}
@@ -207,27 +134,38 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 		return errors.New(loginSession.Message)
 	}
 
-	if err := json.Unmarshal([]byte(loginSession.OAuthInfo), &session.oauth); err != nil {
-		return err
-	}
+	session.oauth = loginSession.OAuth
 
-	randomBytes := make([]byte, 6)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return err
-	}
-
-	sessionID := make([]byte, hex.EncodedLen(len(randomBytes)))
-	hex.Encode(sessionID, randomBytes)
-	session.sessionID = string(sessionID)
-
-	steamUrl, _ := url.Parse("https://steamcommunity.com")
+	steamUrl, _ := url.Parse(httpBaseUrl)
 	cookies := session.client.Jar.Cookies(steamUrl)
 	for _, cookie := range cookies {
-		if cookie.Name == "mobileClient" || cookie.Name == "mobileClientVersion" || cookie.Name == "steamCountry" || strings.Contains(cookie.Name, "steamMachineAuth") {
-			// remove by setting max age -1
-			cookie.MaxAge = -1
+		if cookie.Name == "sessionid" {
+			session.sessionID = cookie.Value
+			break
 		}
 	}
+
+	if session.sessionID == "" {
+		return ErrEmptySessionID
+	}
+
+	//randomBytes := make([]byte, 6)
+	//if _, err := rand.Read(randomBytes); err != nil {
+	//	return err
+	//}
+	//
+	//sessionID := make([]byte, hex.EncodedLen(len(randomBytes)))
+	//hex.Encode(sessionID, randomBytes)
+	//session.sessionID = string(sessionID)
+	//
+	//steamUrl, _ := url.Parse(httpBaseUrl)
+	//cookies := session.client.Jar.Cookies(steamUrl)
+	//for _, cookie := range cookies {
+	//	if cookie.Name == "mobileClient" || cookie.Name == "mobileClientVersion" || cookie.Name == "steamCountry" || strings.Contains(cookie.Name, "steamMachineAuth") {
+	//		// remove by setting max age -1
+	//		cookie.MaxAge = -1
+	//	}
+	//}
 
 	sum := md5.Sum([]byte(accountName + password))
 	session.deviceID = fmt.Sprintf(
@@ -235,45 +173,36 @@ func (session *Session) proceedDirectLogin(response *LoginResponse, accountName,
 		sum[:2], sum[2:4], sum[4:6], sum[6:8], sum[8:10],
 	)
 
-	session.client.Jar.SetCookies(
-		steamUrl,
-		append(cookies, &http.Cookie{
-			Name:  "sessionid",
-			Value: session.sessionID,
-		}),
-	)
+	//cookies = append(cookies, &http.Cookie{
+	//	Name:  "sessionid",
+	//	Value: session.sessionID,
+	//})
+	//session.client.Jar.SetCookies(steamUrl, cookies)
 	return nil
 }
 
 func (session *Session) makeLoginRequest(accountName string) (*LoginResponse, error) {
+	reqData := url.Values{
+		"username":   {accountName},
+		"donotcache": {strconv.FormatInt(time.Now().Unix()*1000, 10)},
+	}.Encode()
+
 	req, err := http.NewRequest(
 		http.MethodPost,
-		"https://steamcommunity.com/login/getrsakey?username="+accountName,
-		nil,
+		"https://steamcommunity.com/login/getrsakey",
+		strings.NewReader(reqData),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("X-Requested-With", httpXRequestedWithValue)
-	req.Header.Add("Referer", httpLoginReferer)
-	req.Header.Add("User-Agent", httpUserAgentValue)
-	req.Header.Add("Accept", httpAcceptValue)
-
-	cookies := []*http.Cookie{
-		{Name: "mobileClientVersion", Value: "0 (2.1.3)"},
-		{Name: "mobileClient", Value: "android"},
-		{Name: "Steam_Language", Value: session.language},
-		{Name: "timezoneOffset", Value: "0,0"},
-	}
-	steamUrl, _ := url.Parse("https://steamcommunity.com")
-	jar.SetCookies(steamUrl, cookies)
-	session.client.Jar = jar
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Add("Content-Length", strconv.Itoa(len(reqData)))
+	req.Header.Add("X-Requested-With", "XMLHttpRequest")
+	req.Header.Add("Origin", "https://steamcommunity.com")
+	req.Header.Add("Referer", "https://steamcommunity.com/login")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36")
+	req.Header.Add("Accept", "*/*")
 
 	resp, err := session.client.Do(req)
 	if resp != nil {
@@ -282,14 +211,6 @@ func (session *Session) makeLoginRequest(accountName string) (*LoginResponse, er
 
 	if err != nil {
 		return nil, err
-	}
-
-	if session.debug {
-		respBytes, err := httputil.DumpResponse(resp, true)
-		if err != nil {
-			return nil, err
-		}
-		log.Println(string(respBytes))
 	}
 
 	var response LoginResponse
@@ -304,12 +225,61 @@ func (session *Session) makeLoginRequest(accountName string) (*LoginResponse, er
 	return &response, nil
 }
 
+func (session *Session) setupCookieJar() error {
+	req, err := http.NewRequest(
+		http.MethodGet,
+		httpLoginUrl,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	resp, err := session.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return err
+	}
+
+	steamUrl, err := url.Parse(httpBaseUrl)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	_, offset := now.Zone()
+
+	cookies := []*http.Cookie{
+		{Name: "timezoneOffset", Value: fmt.Sprintf("%d,0", offset)},
+	}
+
+	for _, cookie := range resp.Cookies() {
+		cookies = append(cookies, &http.Cookie{Name: cookie.Name, Value: cookie.Value})
+	}
+
+	jar.SetCookies(steamUrl, cookies)
+	session.client.Jar = jar
+
+	return nil
+}
+
 // LoginTwoFactorCode logs in with the @twoFactorCode provided,
 // note that in the case of having shared secret known, then it's better to
 // use Login() because it's more accurate.
 // Note: You can provide an empty two factor code if two factor authentication is not
 // enabled on the account provided.
 func (session *Session) LoginTwoFactorCode(accountName, password, twoFactorCode string) error {
+	err := session.setupCookieJar()
+	if err != nil {
+		return err
+	}
+
 	response, err := session.makeLoginRequest(accountName)
 	if err != nil {
 		return err
@@ -322,6 +292,11 @@ func (session *Session) LoginTwoFactorCode(accountName, password, twoFactorCode 
 // to do the actual login, this provides a better chance that the code generated will work
 // because of the slowness of the API.
 func (session *Session) Login(accountName, password, sharedSecret string, timeOffset time.Duration) error {
+	err := session.setupCookieJar()
+	if err != nil {
+		return err
+	}
+
 	response, err := session.makeLoginRequest(accountName)
 	if err != nil {
 		return err

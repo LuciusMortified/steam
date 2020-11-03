@@ -22,10 +22,10 @@ type Confirmation struct {
 }
 
 var (
-	//ErrConfirmationsUnknownError = errors.New("unknown error occurred finding confirmations")
-	ErrCannotFindConfirmations   = errors.New("unable to find confirmations")
+	//ErrConfirmationsUnknownError = errors.New("unknown error occurred finding confirmation")
+	ErrCannotFindConfirmations   = errors.New("unable to find confirmation")
 	ErrCannotFindDescriptions    = errors.New("unable to find confirmation descriptions")
-	ErrConfirmationsDescMismatch = errors.New("cannot match confirmations with their respective descriptions")
+	ErrConfirmationsDescMismatch = errors.New("cannot match confirmation with their respective descriptions")
 )
 
 func (session *Session) execConfirmationRequest(request, key, tag string, current int64, values map[string]interface{}) (*http.Response, error) {
@@ -53,12 +53,12 @@ func (session *Session) execConfirmationRequest(request, key, tag string, curren
 }
 
 func (session *Session) GetConfirmations(identitySecret string, current int64) ([]*Confirmation, error) {
-	key, err := GenerateConfirmationCode(identitySecret, "conf", current)
+	key, err := GenerateConfirmationCode(identitySecret, "confirmation", current)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := session.execConfirmationRequest("conf?", key, "conf", current, nil)
+	resp, err := session.execConfirmationRequest("confirmation?", key, "confirmation", current, nil)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
