@@ -80,10 +80,10 @@ type EconDesc struct {
 }
 
 type EconTag struct {
-	InternalName string `json:"internal_name"`
-	Name         string `json:"name"`
-	Category     string `json:"category"`
-	CategoryName string `json:"category_name"`
+	InternalName          string `json:"internal_name"`
+	Category              string `json:"category"`
+	LocalizedCategoryName string `json:"localized_category_name"`
+	LocalizedTagName      string `json:"localized_tag_name"`
 }
 
 type EconAction struct {

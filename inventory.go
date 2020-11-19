@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http/httputil"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -53,10 +52,6 @@ type InventoryAppStats struct {
 
 var inventoryContextRegexp = regexp.MustCompile("var g_rgAppContextData = (.*?);")
 
-func l(string) {
-
-}
-
 func (session *Session) fetchInventory(
 	sid SteamID,
 	appID, contextID, startAssetID uint64,
@@ -101,12 +96,6 @@ func (session *Session) fetchInventory(
 		TotalInventoryCount int             `json:"total_inventory_count"`
 		ErrorMsg            string          `json:"error"`
 	}
-
-	respBytes, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		return false, 0, err
-	}
-	l(string(respBytes))
 
 	var response Response
 	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
